@@ -17,6 +17,8 @@ dependencies = [
   "pymilvus>=2.5,<4",
   "sqlglot>=25,<31",
   "openai>=1.60,<3",
+  "alembic>=1.14,<2",
+  "pyjwt[crypto]>=2.10,<3",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +35,10 @@ include = ["app*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -rs"
+markers = [
+  "postgres: requires the configured PostgreSQL; runs in an isolated throwaway schema",
+]
 
 [tool.ruff]
 target-version = "py312"
@@ -41,3 +46,11 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency markers are evaluated once by design.
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.Query",
+  "app.workspaces.dependencies.require_workspace_permission",
+]

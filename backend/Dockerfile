@@ -7,6 +7,9 @@ WORKDIR /app
 COPY backend/pyproject.toml ./pyproject.toml
 COPY backend/app ./app
 RUN pip install --no-cache-dir .
+# Migrations ship in the image: `docker compose run --rm backend alembic upgrade head`
+COPY backend/alembic.ini ./alembic.ini
+COPY backend/migrations ./migrations
 
 RUN useradd --create-home --uid 10001 datagent
 USER datagent

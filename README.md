@@ -16,11 +16,11 @@
 
 - 本地配置加载与秘密字段封装。
 - FastAPI 存活/就绪检查，分别检查 PostgreSQL、Redis、Milvus。
-- QuerySpec、单数据集语义注册表、权限优先的 SQLGlot 编译基础。
-- 编译后 SQL 只读安全复核及单元测试。
+- QuerySpec、单数据集语义注册表、权限优先的 SQLGlot 编译基础；编译后 SQL 只读安全复核。
+- 控制面：Alembic 迁移、OIDC Bearer 令牌校验、用户自动建档、工作区与成员 RBAC、只能追加的审计日志。
 - React 工程与基础设施状态页面。
 
-尚未实现 OIDC 登录、真实数据源执行、模型调用、语义管理、仪表盘和报表；不得据此宣称产品已经上线。
+尚未实现浏览器登录会话、真实数据源执行、模型调用、语义管理、仪表盘和报表；不得据此宣称产品已经上线。进度见 [开发状态](docs/development-status.md)。
 
 ## 本地启动
 
@@ -33,6 +33,7 @@ cp .env.example .env
 python -m venv .venv
 source .venv/Scripts/activate   # Windows Git Bash
 pip install -e "./backend[dev]"
+alembic -c backend/alembic.ini upgrade head
 uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8001
 ```
 
@@ -49,11 +50,11 @@ npm run dev
 ## 测试
 
 ```bash
-pytest backend/tests
+pytest backend/tests          # 含 PostgreSQL 集成测试（临时 schema，结束后删除）
 cd frontend && npm run build
 ```
 
-Docker/真实三方言数据库集成测试需在具备 Docker 的 Linux 环境执行；当前机器未安装 Docker。
+数据库不可达时，集成测试会被明确标记为 skipped，而不是假装通过。Docker/真实三方言数据库集成测试需在具备 Docker 的 Linux 环境执行；当前机器未安装 Docker。
 
 ## 版本管理
 
