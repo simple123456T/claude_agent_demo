@@ -36,6 +36,15 @@ class Settings(BaseSettings):
     model_base_url: str | None = None
     model_api_key: SecretStr | None = None
     model_name: str | None = None
+    model_timeout_seconds: float = Field(default=60.0, ge=1, le=600)
+    model_json_mode: bool = True
+
+    query_timeout_ms: int = Field(default=15000, ge=1000, le=300000)
+    demo_schema: str = Field(default="datagent_demo", pattern=SQL_IDENTIFIER_PATTERN)
+
+    # Local-development sign-in. Only honoured when APP_ENV=development, requests come from
+    # loopback, and no real OIDC provider is configured; refused outright in production.
+    dev_auth_enabled: bool = False
 
     oidc_issuer: str | None = None
     oidc_audience: str | None = None
@@ -89,6 +98,10 @@ class Settings(BaseSettings):
     @property
     def oidc_configured(self) -> bool:
         return bool(self.oidc_issuer and self.effective_oidc_audience)
+
+    @property
+    def dev_auth_active(self) -> bool:
+        return self.dev_auth_enabled and not self.is_production and not self.oidc_configured
 
     @property
     def bootstrap_admin_subjects(self) -> frozenset[str]:

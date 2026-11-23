@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
+from app.identity.dev import get_dev_provider
 from app.identity.oidc import (
     IdentityProviderUnavailable,
     JWKSKeyProvider,
@@ -34,6 +35,8 @@ def _build_verifier() -> OIDCVerifier:
 
 
 def get_verifier(settings: Settings = Depends(get_settings)) -> OIDCVerifier:
+    if settings.dev_auth_active:
+        return get_dev_provider().verifier()
     # Fail closed: without an identity provider no protected endpoint is reachable.
     if not settings.oidc_configured:
         raise HTTPException(

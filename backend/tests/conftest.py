@@ -1,5 +1,6 @@
 import pytest
 
+from app.core.config import Settings
 from app.policy.models import AccessPolicy
 from app.semantic.registry import (
     Aggregation,
@@ -45,3 +46,17 @@ def sales_policy() -> AccessPolicy:
             {"field": "region", "operator": "ne", "values": ["INTERNAL_TEST"]}
         ],
     )
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_settings_env(monkeypatch):
+    """Keep tests independent of whatever the developer put in their local .env.
+
+    Importing pymilvus runs ``load_dotenv()``, which finds the project's .env (the virtualenv
+    lives inside the repo) and copies every value into ``os.environ``. Without this, a test
+    asserting a default - such as dev sign-in being off - would pass or fail depending on
+    the developer's machine.
+    """
+
+    for field in Settings.model_fields:
+        monkeypatch.delenv(field.upper(), raising=False)

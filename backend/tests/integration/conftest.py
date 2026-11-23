@@ -16,11 +16,15 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.routes.query import get_query_engine, get_registry
 from app.core.config import get_settings
 from app.db.session import build_engine, get_db
+from app.demo.dataset import build_demo_dataset
+from app.demo.seed import seed_demo_data
 from app.identity.dependencies import get_verifier
 from app.identity.oidc import OIDCVerifier, StaticKeyProvider
 from app.main import app
+from app.semantic.registry import SemanticRegistry
 from tests.tokens import AUDIENCE, ISSUER, generate_rsa_key, make_token
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -82,13 +86,25 @@ def signing_key():
     return generate_rsa_key()
 
 
+@pytest.fixture(scope="session")
+def demo_schema(engine: Engine, make_schema: Callable[[], str]) -> str:
+    """Demo sales data in its own throwaway schema (never the real datagent_demo)."""
+
+    schema = make_schema()
+    seed_demo_data(engine, schema)
+    return schema
+
+
 @pytest.fixture
-def client(engine: Engine, signing_key) -> Iterator[TestClient]:
+def client(engine: Engine, signing_key, demo_schema: str) -> Iterator[TestClient]:
     factory = sessionmaker(engine, expire_on_commit=False)
 
     def override_db() -> Iterator[Session]:
         with factory() as session:
             yield session
+
+    registry = SemanticRegistry()
+    registry.register(build_demo_dataset(demo_schema))
 
     verifier = OIDCVerifier(
         issuer=ISSUER, audience=AUDIENCE, key_provider=StaticKeyProvider(signing_key.public_key())
@@ -98,11 +114,15 @@ def client(engine: Engine, signing_key) -> Iterator[TestClient]:
             "oidc_issuer": ISSUER,
             "oidc_audience": AUDIENCE,
             "oidc_bootstrap_admin_subjects": BOOTSTRAP_ADMIN,
+            "model_base_url": None,
+            "model_name": None,
         }
     )
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_verifier] = lambda: verifier
     app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_registry] = lambda: registry
+    app.dependency_overrides[get_query_engine] = lambda: engine
     try:
         with TestClient(app) as test_client:
             yield test_client

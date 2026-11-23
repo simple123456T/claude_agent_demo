@@ -43,15 +43,23 @@ def record_event(
     )
 
 
-def record_denial(db: Session, **kwargs: Any) -> None:
-    """Persist a denial in its own transaction, because the request itself will fail."""
+def record_isolated(db: Session, outcome: Outcome, **kwargs: Any) -> None:
+    """Persist an event in its own transaction, because the request itself is about to fail."""
 
     try:
         with Session(bind=db.get_bind()) as audit_session:
-            record_event(audit_session, outcome="denied", **kwargs)
+            record_event(audit_session, outcome=outcome, **kwargs)
             audit_session.commit()
     except Exception:  # noqa: BLE001 - a broken audit write must not change the HTTP outcome
-        logger.exception("Failed to persist denied audit event %s", kwargs.get("action"))
+        logger.exception("Failed to persist %s audit event %s", outcome, kwargs.get("action"))
+
+
+def record_denial(db: Session, **kwargs: Any) -> None:
+    record_isolated(db, "denied", **kwargs)
+
+
+def record_failure(db: Session, **kwargs: Any) -> None:
+    record_isolated(db, "failure", **kwargs)
 
 
 def _bounded(details: dict[str, Any]) -> dict[str, Any]:
